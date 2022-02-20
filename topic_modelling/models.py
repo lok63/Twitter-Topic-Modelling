@@ -69,9 +69,15 @@ class TopicModel(ABC):
         print('\nCoherence Score: ', coherance_score)
         return coherance_score
 
+    def visualise_topics_notebook(self):
+        vis = gensimvis.prepare(topic_model=self.model, corpus=self.corpus, dictionary=self.id2word)
+        pyLDAvis.enable_notebook()
+        pyLDAvis.display(vis)
+
     def visualise_topics(self):
         vis_data = gensimvis.prepare(basic_model.model, basic_model.corpus, basic_model.id2word)
         return vis_data
+
 
 
 class BasicModel(TopicModel):

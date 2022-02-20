@@ -9,7 +9,7 @@ def tweet_preprocessor(text: str) -> str:
     tp.set_options(
         tp.OPT.URL,
         tp.OPT.MENTION,
-        # tp.OPT.HASHTAG,
+        tp.OPT.HASHTAG,
         tp.OPT.RESERVED,
         tp.OPT.SMILEY,
         tp.OPT.EMOJI,

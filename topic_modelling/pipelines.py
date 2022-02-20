@@ -6,6 +6,7 @@ from nltk.corpus import stopwords
 from nltk.stem import WordNetLemmatizer
 from nltk.tokenize import TweetTokenizer
 from gensim.utils import tokenize
+from gensim.models.phrases import Phrases
 from utils import timing
 from typing import List,Callable
 import pandas as pd
@@ -40,6 +41,7 @@ def nltk_preprocessor(df:pd.DataFrame, column: str) -> pd.DataFrame:
 
 @timing
 def spacy_preprocessor(df:pd.DataFrame, column: str) -> pd.DataFrame:
+    print(":: Spacy preprocessor -> cleaning, this might take 1-2 minutes....")
     df[column] = spp.preprocess_batch(df[column])
     return df
 
@@ -53,6 +55,12 @@ def tokenizer_transformer(df:pd.DataFrame, column: str) -> pd.DataFrame:
     return df
 
 @timing
+def ngrammer_2_3(df:pd.DataFrame, column: str) -> pd.DataFrame:
+    bigram_model = Phrases(df[column], min_count=5, threshold=10)
+    df[column] = df[column].swifter.apply(lambda x: bigram_model[x])
+    return df
+
+@timing
 def reset_index(df:pd.DataFrame, column: str) -> pd.DataFrame:
     df = df.reset_index(drop=True)
     return df
@@ -60,22 +68,25 @@ def reset_index(df:pd.DataFrame, column: str) -> pd.DataFrame:
 
 basic_pipeline = Pipeline(
     transformers=[
-        # spacy_preprocessor,
-        nltk_preprocessor,
+        reset_index,
         tweet_preprocessor,
+        nltk_preprocessor,
         drop_empty,
         reset_index,
         tokenizer_transformer,
+        ngrammer_2_3,
     ]
 )
 
 spacy_pipeline = Pipeline(
     transformers=[
+        reset_index,
         tweet_preprocessor,
         spacy_preprocessor,
         drop_empty,
         reset_index,
         tokenizer_transformer,
+        ngrammer_2_3,
     ]
 )
 
