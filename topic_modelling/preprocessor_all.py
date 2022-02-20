@@ -1,5 +1,5 @@
 from sklearn.feature_extraction.text import CountVectorizer
-from topic_modelling.spacy_preprocessor import SpacyPreprocessor
+from topic_modelling.preprocessor_spacy import SpacyPreprocessor
 import preprocessor as tp
 from langdetect import detect, detect_langs
 from typing import List, Tuple, Optional, Union
@@ -7,16 +7,17 @@ from utils import timing
 import pandas as pd
 import re
 import swifter
+from pathlib import Path
+
+PROJECT_ROOT = Path(__file__).parent.parent
 
 
 @timing
 def load_data()->pd.DataFrame:
-    df1 = pd.read_csv('data/twitter_dataset.csv')
-    df2 = pd.read_csv('data/twitter_dataset 2.csv')
+    df1 = pd.read_csv(PROJECT_ROOT /'data/twitter_dataset.csv')
+    df2 = pd.read_csv(PROJECT_ROOT /'data/twitter_dataset 2.csv')
 
     # Make sure the 2 CSV files have the same schema
-    print(df1.shape)
-    print(df2.shape)
 
     # Ensure that the 2 DFs have the same shape/columns
     assert list(df1.columns) == list(df2.columns)

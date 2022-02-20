@@ -1,4 +1,4 @@
-from topic_modelling.spacy_preprocessor  import SpacyPreprocessor
+from topic_modelling.preprocessor_spacy  import SpacyPreprocessor
 
 def test_spacy_preprocessor():
     spacy_preprocessor = SpacyPreprocessor()

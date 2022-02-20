@@ -33,14 +33,14 @@ class SpacyPreprocessor:
         except Exception as e:
             raise e
 
-    @timing
+    # @timing
     def preprocess_batch(self, docs: List[str], batch_size: int = 1000) -> List[str]:
         clean_docs = []
         for doc in self.nlp.pipe(docs, batch_size=batch_size, n_process=-1):
             clean_docs.append(self.preprocess_one(doc))
         return clean_docs
 
-    @timing
+    # @timing
     def detect_language(self, docs: List[str], batch_size: int = 1000) -> Tuple[List[str], List[float]]:
 
         langs, probs = zip(*[(doc._.language['language'], doc._.language['score']) for doc in
