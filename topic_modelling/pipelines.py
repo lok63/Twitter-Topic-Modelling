@@ -1,5 +1,6 @@
 from topic_modelling.preprocessor_tweet import tweet_preprocessor as tp
-from topic_modelling.preprocessor_all import tweet_preprocessor, spacy_preprocessor, load_data
+from topic_modelling.preprocessor_tweet import demoji_from_text
+from topic_modelling.preprocessor_all import load_data, get_language, remove_predefined_noise
 from topic_modelling.preprocessor_spacy import SpacyPreprocessor
 from topic_modelling.preprocessor_nltk import NLTKPreprocessor
 from nltk.corpus import stopwords
@@ -33,6 +34,10 @@ class Pipeline:
 def tweet_preprocessor(df:pd.DataFrame, column: str) -> pd.DataFrame:
     df[column] = df[column].swifter.apply(lambda x: tp(x))
     return df
+@timing
+def demoji_preprocessor(df:pd.DataFrame, column: str) -> pd.DataFrame:
+    df[column] = df[column].swifter.apply(lambda x: demoji_from_text(x))
+    return df
 
 @timing
 def nltk_preprocessor(df:pd.DataFrame, column: str) -> pd.DataFrame:
@@ -42,7 +47,23 @@ def nltk_preprocessor(df:pd.DataFrame, column: str) -> pd.DataFrame:
 @timing
 def spacy_preprocessor(df:pd.DataFrame, column: str) -> pd.DataFrame:
     print(":: Spacy preprocessor -> cleaning, this might take 1-2 minutes....")
-    df[column] = spp.preprocess_batch(df[column])
+    df[column] = df[column].swifter.apply(lambda x: spp.preprocess_one(x))
+    # df[column] = spp.preprocess_batch(df[column])
+    return df
+
+@timing
+def lang_detector(df:pd.DataFrame, column: str) -> pd.DataFrame:
+    """
+    Detect the language of each tweet and add the language to the dataframe
+    https://github.com/Mimino666/langdetect
+    """
+    df['lang'] = df[column].swifter.apply(lambda x: get_language(x))
+    return df
+
+@timing
+def lang_detect_spacy(df:pd.DataFrame, column: str) -> pd.DataFrame:
+    print(":: Detecting language using Spacy -> this might take 1-2 minutes....")
+    df[['lang', 'prob']] = df[column].apply(spp.detect_language)
     return df
 
 @timing
@@ -52,6 +73,11 @@ def drop_empty(df:pd.DataFrame, column: str) -> pd.DataFrame:
 @timing
 def tokenizer_transformer(df:pd.DataFrame, column: str) -> pd.DataFrame:
     df[column] = df[column].swifter.apply(lambda x: list(tokenize(x)))
+    return df
+
+@timing
+def predefined_denoiser(df:pd.DataFrame, column: str) -> pd.DataFrame:
+    df[column] = df[column].swifter.apply(lambda x: remove_predefined_noise(x))
     return df
 
 @timing
@@ -69,11 +95,13 @@ def reset_index(df:pd.DataFrame, column: str) -> pd.DataFrame:
 basic_pipeline = Pipeline(
     transformers=[
         reset_index,
+        demoji_preprocessor,
         tweet_preprocessor,
         nltk_preprocessor,
         drop_empty,
         reset_index,
         tokenizer_transformer,
+        predefined_denoiser,
         ngrammer_2_3,
     ]
 )
@@ -81,15 +109,34 @@ basic_pipeline = Pipeline(
 spacy_pipeline = Pipeline(
     transformers=[
         reset_index,
+        demoji_preprocessor,
         tweet_preprocessor,
         spacy_preprocessor,
         drop_empty,
         reset_index,
         tokenizer_transformer,
+        predefined_denoiser,
         ngrammer_2_3,
     ]
 )
 
+analytics_pipeline = Pipeline(
+    transformers=[
+        reset_index,
+        demoji_preprocessor,
+        tweet_preprocessor,
+        nltk_preprocessor,
+        # drop_empty,
+        reset_index,
+        lang_detector,
+        tokenizer_transformer,
+        predefined_denoiser,
+        ngrammer_2_3,
+    ]
+)
 if __name__ == '__main__':
     df = load_data()
-    df = basic_pipeline.apply(df, column='cleanBody')
+    # df = analytics_pipeline.apply(df, column='cleanBody')
+    df = lang_detector(df, column='cleanBody')
+
+    # spp.detect_language(['this is an english'], batch_size=1, n_process=1)

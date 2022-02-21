@@ -25,6 +25,7 @@ def load_data()->pd.DataFrame:
     assert (df1.dtypes == df2.dtypes).any() == True
 
     df = pd.concat([df1,df2])
+    df.drop_duplicates('TweetID',inplace=True)
     df['cleanBody'] = df['TweetBody']
     return df
 
@@ -35,30 +36,13 @@ def clean_hashtags(df:pd.DataFrame) -> pd.DataFrame:
     df['cleanBody'] = df['cleanBody'].apply(lambda x: re.sub(r'#\w+', '', x))
     return df
 
-@timing
-def tweet_preprocessor(df:pd.DataFrame) -> pd.DataFrame:
+def remove_predefined_noise(text: List[str]) -> List[str]:
     """
-    Removes @mentions, #hashtags. URLs, reserved words (RT, FAV), emojis and Smiley faces
-    https://github.com/s/preprocessor
+    Remove predefined noise from the text such as amp and http
     """
-    tp.set_options(
-        # tp.OPT.URL,
-        tp.OPT.MENTION,
-        tp.OPT.HASHTAG,
-        tp.OPT.RESERVED,
-        tp.OPT.SMILEY,
-        tp.OPT.EMOJI,
-        # tp.OPT.NUMBER,
-    )
-    df['cleanBody'] = df["cleanBody"].swifter.apply(lambda x: tp.clean(x))
-    return df
+    predefined_noise = ['amp','http']
+    return [word for word in text if word not in predefined_noise]
 
-@timing
-def spacy_preprocessor(df:pd.DataFrame, spp: SpacyPreprocessor) -> pd.DataFrame:
-
-    # df['cleanBody'] = df["cleanBody"].swifter.apply(lambda x: spp.preprocess_one(x))
-    df['cleanBody'] = spp.preprocess_batch(df['cleanBody'])
-    return df
 
 @timing
 def lang_detector(df:pd.DataFrame) -> pd.DataFrame:
@@ -113,19 +97,6 @@ def spacy_lang_detector(df:pd.DataFrame) -> pd.DataFrame:
     print(nlp.pipe_names)
     return df
 
-def get_lang_spacy(text: str, nlp) -> Tuple[str, float]:
-    """
-    Detect the language of a given text and return the language and the probability. The langdetect API is able to detect multible langyes. but we choose to
-    return the first language.When the classifier fails to detect the language, we want to default to UNK.
-    """
-
-
-    try:
-        doc = nlp(text)
-        return doc._.language['language'], doc._.language['score']
-    except:
-        return 'UNK', -1
-
 
 def get_n_grams(df: pd.DataFrame, column_name: str, ngram_from:int =2, ngram_to:int =2, top_n=50, max_features=50000) -> List[Tuple[str, int]]:
     """
@@ -153,8 +124,8 @@ if __name__ == '__main__':
     # df_no_rt = df.loc[df["TweetRetweetFlag"] == False]
     # df_no_rt = df_no_rt.reset_index(drop=True)
 
-    df_clean = tweet_preprocessor(df)
-    df_clean = spacy_preprocessor(df_clean, spacy_pp)
+    # df_clean = tweet_preprocessor(df)
+    # df_clean = spacy_preprocessor(df_clean, spacy_pp)
 
     # df_clean = lang_detector(df_clean)
     # df_clean = spacy_lang_detector(df_clean)
@@ -163,17 +134,17 @@ if __name__ == '__main__':
     # res = spacy_pp.preprocess_one(df_test[0])
     # res = spacy_pp.preprocess_batch(df_test, batch_size=100)
 
-    clean_unigrams = get_n_grams(df_clean, 'cleanBody', ngram_from=1, ngram_to=1)
-    clean_bigrams = get_n_grams(df_clean, 'cleanBody', ngram_from=2, ngram_to=2)
-    clean_trigrams = get_n_grams(df_clean, 'cleanBody', ngram_from=3, ngram_to=3)
-
-    raw_unigrams = get_n_grams(df_clean, 'TweetBody', ngram_from=1, ngram_to=1)
-    raw_bigrams = get_n_grams(df_clean, 'TweetBody', ngram_from=2, ngram_to=2)
-    raw_trigrams = get_n_grams(df_clean, 'TweetBody', ngram_from=3, ngram_to=3)
-
-    hashtags_unigrams = get_n_grams(df_clean, 'TweetHashtags', ngram_from=1, ngram_to=1)
-    hashtags_bigrams = get_n_grams(df_clean, 'TweetHashtags', ngram_from=2, ngram_to=2)
-    hashtags_trigrams = get_n_grams(df_clean, 'TweetHashtags', ngram_from=3, ngram_to=3)
+    # clean_unigrams = get_n_grams(df_clean, 'cleanBody', ngram_from=1, ngram_to=1)
+    # clean_bigrams = get_n_grams(df_clean, 'cleanBody', ngram_from=2, ngram_to=2)
+    # clean_trigrams = get_n_grams(df_clean, 'cleanBody', ngram_from=3, ngram_to=3)
+    #
+    # raw_unigrams = get_n_grams(df_clean, 'TweetBody', ngram_from=1, ngram_to=1)
+    # raw_bigrams = get_n_grams(df_clean, 'TweetBody', ngram_from=2, ngram_to=2)
+    # raw_trigrams = get_n_grams(df_clean, 'TweetBody', ngram_from=3, ngram_to=3)
+    #
+    # hashtags_unigrams = get_n_grams(df_clean, 'TweetHashtags', ngram_from=1, ngram_to=1)
+    # hashtags_bigrams = get_n_grams(df_clean, 'TweetHashtags', ngram_from=2, ngram_to=2)
+    # hashtags_trigrams = get_n_grams(df_clean, 'TweetHashtags', ngram_from=3, ngram_to=3)
 
 
 
