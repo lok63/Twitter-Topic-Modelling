@@ -1,7 +1,9 @@
-from topic_modelling.preprocessor_all import load_data, tweet_preprocessor, spacy_preprocessor
+from topic_modelling.preprocessor_all import load_data
+from topic_modelling.pipelines import tweet_preprocessor, spacy_preprocessor
 from topic_modelling.preprocessor_spacy import SpacyPreprocessor
 from gensim.models.ldamulticore import LdaMulticore
-from gensim.models import TfidfModel, Word2Vec, CoherenceModel
+from gensim.models import TfidfModel, HdpModel, CoherenceModel
+import matplotlib.pyplot as plt
 from gensim.utils import tokenize
 from utils import timing
 from abc import ABC, abstractmethod
@@ -11,7 +13,7 @@ import gensim
 import pandas as pd
 import re
 
-"""The LDA topic model algorithm requires a document word matrix and a dictionary as the main inputs"""
+RANDOM_STATE = 42
 
 class TopicModel(ABC):
 
@@ -49,7 +51,7 @@ class TopicModel(ABC):
         self.corpus = [self.id2word.doc2bow(d) for d in self.df.tolist()]
 
 
-    def print_topics(self):
+    def get_topics(self):
         words = [re.findall(r'"([^"]*)"', t[1]) for t in self.model.print_topics()]
         topics = [' '.join(t[0:10]) for t in words]
         # Getting the topics
@@ -78,6 +80,42 @@ class TopicModel(ABC):
         vis_data = gensimvis.prepare(basic_model.model, basic_model.corpus, basic_model.id2word)
         return vis_data
 
+    def compute_coherence_values(self, start=2, limit=10, step=2, plot=False):
+        """
+        Code retrieved fro: https://www.machinelearningplus.com/nlp/topic-modeling-gensim-python/#17howtofindtheoptimalnumberoftopicsforlda
+        coherence_values : Coherence values corresponding to the LDA model with respective number of topics
+        """
+        coherence_values = []
+        model_list = []
+        for num_topics in range(start, limit, step):
+            model = LdaMulticore(corpus=self.corpus, num_topics=num_topics, id2word=self.id2word, random_state=RANDOM_STATE)
+            model_list.append(model)
+            coherencemodel = CoherenceModel(model=model, texts=self.df, dictionary=self.id2word, coherence='c_v')
+            coherence_values.append(coherencemodel.get_coherence())
+
+        if plot:
+            x = range(start, limit, step)
+            plt.plot(x, coherence_values)
+            plt.xlabel("Num Topics")
+            plt.ylabel("Coherence score")
+            plt.legend(("coherence_values"), loc='best')
+            plt.show()
+        return model_list, coherence_values
+
+
+    def compute_coherence_for_topics_a_d(self, k, a, d=0.5):
+        lda_model = gensim.models.LdaMulticore(corpus=self.corpus,
+                                               id2word=self.id2word,
+                                               num_topics=k,
+                                               random_state=100,
+                                               chunksize=100,
+                                               passes=10,
+                                               alpha=a,
+                                               eta=None,
+                                               decay=d)
+
+        coherence_model_lda = CoherenceModel(model=lda_model, texts=self.df, dictionary=self.id2word, coherence='c_v')
+        return coherence_model_lda.get_coherence()
 
 
 class BasicModel(TopicModel):
@@ -90,7 +128,8 @@ class BasicModel(TopicModel):
         self.df = df[column]
 
 
-    def train(self, num_topics: int = 10, passes: int = 5):
+    @timing
+    def train(self, num_topics: int = 10, passes: int = 5, chunksize=2000, eval_every=10, alpha='asymmetric', eta=None, decay=0.5):
         self.createid2word_dictionary()
         self.filter_extremes()
         self.create_bow_coprpus()
@@ -101,22 +140,47 @@ class BasicModel(TopicModel):
                                   workers=None,
                                   num_topics=num_topics,
                                   passes=passes,
-                                  random_state=42)
+                                  chunksize = chunksize,
+                                  eval_every = eval_every,
+                                  random_state=RANDOM_STATE,
+                                  alpha=alpha,
+                                  eta=eta,
+                                  decay=0.5)
         self.model = base_model
 
-class TFIDFModel(TopicModel):
 
+class HierarchicalModel(TopicModel):
     def __init__(self, *args, **kwargs):
-        # invoke TopicModel.__init__
         super().__init__(*args, **kwargs)
 
-    def init_model(self, df: pd.DataFrame, column_name: str):
-        self.createid2word_dictionary(df, column_name)
-        self.filter_extremes()
-        self.create_bow_coprpus(df, column_name)
+    def fit(self, df:pd.DataFrame, column: str):
+        self.df = df[column]
 
-        tfidf = TfidfModel(self.corpus, id2word=self.id2word)
-        self.model = tfidf
+    @timing
+    def train(self):
+        self.createid2word_dictionary()
+        self.create_bow_coprpus()
+
+        print(f"----> Training {self.__class__.__name__} <----")
+        base_model = HdpModel(corpus=self.corpus,
+                              id2word=self.id2word,
+                              random_state=RANDOM_STATE
+                              )
+        self.model = base_model
+
+# class TFIDFModel(TopicModel):
+#
+#     def __init__(self, *args, **kwargs):
+#         super().__init__(*args, **kwargs)
+#
+#     def init_model(self, df: pd.DataFrame, column_name: str):
+#         self.createid2word_dictionary(df, column_name)
+#         self.filter_extremes()
+#         self.create_bow_coprpus(df, column_name)
+#
+#         tfidf = TfidfModel(self.corpus, id2word=self.id2word)
+#         self.model = tfidf
+
 
 
 if __name__ == '__main__':
@@ -142,7 +206,6 @@ if __name__ == '__main__':
 
     basic_model.visualise_topics()
 
-    import matplotlib.pyplot as plt
 
     def compute_coherence_values(dictionary, corpus, texts, limit, start=2, step=3):
         """
