@@ -4,6 +4,10 @@ from typing import List, Union, Tuple
 from utils import timing
 import spacy
 
+@Language.factory("language_detector")
+def _get_lang_detector(nlp, name):
+    return LanguageDetector()
+
 class SpacyPreprocessor:
     def __init__(self, model: str = 'en_core_web_sm'):
         self.nlp = spacy.load(model, disable=["tok2vec", "textcat", "ner"])
@@ -12,12 +16,9 @@ class SpacyPreprocessor:
 
     def _init_language_model(self, model: str = 'en_core_web_sm'):
         nlp = spacy.load(model, disable=["tok2vec", "tagger", "attribute_ruler", "lemmatizer", "textcat", "ner"])
-        Language.factory("language_detector", func=self._get_lang_detector)
+        # Language.factory("language_detector", func=self._get_lang_detector)
         nlp.add_pipe('language_detector', last=True)
         return nlp
-
-    def _get_lang_detector(self, nlp, name):
-        return LanguageDetector()
 
     def preprocess_one(self, doc: Union[str,spacy.tokens.doc.Doc]) -> str:
         """
@@ -46,3 +47,16 @@ class SpacyPreprocessor:
         langs, probs = zip(*[(doc._.language['language'], doc._.language['score']) for doc in
                              self.language_model.pipe(docs, batch_size=batch_size, n_process=n_process)])
         return langs, probs
+
+    def detect_language_single(self, doc: str,) -> Tuple[List[str], List[float]]:
+        doc = self.language_model(doc)
+        langs, probs = doc._.language['language'], doc._.language['score']
+        return langs, probs
+
+
+
+if __name__ == '__main__':
+    spp = SpacyPreprocessor(model='en_core_web_lg')
+
+    txt = "Please RT #travel #traveller 84 130km  https://t.co/3deSF9TmG"
+    lang, prob = spp.detect_language_single(txt)

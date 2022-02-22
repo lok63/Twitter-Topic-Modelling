@@ -2,10 +2,10 @@ from topic_modelling.preprocessor_spacy  import SpacyPreprocessor
 from topic_modelling.preprocessor_all import remove_predefined_noise
 
 test_cases = [
-    {'in':['amp','https'],
-     'out':['https']},
-    {'in':['amperage', 'amputate', 'http'],
-     'out':['amperage', 'amputate']},
+    {'in':"amp https",
+     'out':''},
+    {'in':'amperage https amputate http',
+     'out':'amperage amputate'},
 
 ]
 

@@ -36,12 +36,12 @@ def clean_hashtags(df:pd.DataFrame) -> pd.DataFrame:
     df['cleanBody'] = df['cleanBody'].apply(lambda x: re.sub(r'#\w+', '', x))
     return df
 
-def remove_predefined_noise(text: List[str]) -> List[str]:
+def remove_predefined_noise(text: str) -> str:
     """
     Remove predefined noise from the text such as amp and http
     """
-    predefined_noise = ['amp','http']
-    return [word for word in text if word not in predefined_noise]
+    predefined_noise = ['amp','http', 'https']
+    return " ".join([word for word in text.split() if word not in predefined_noise])
 
 
 @timing
@@ -114,6 +114,7 @@ def get_n_grams(df: pd.DataFrame, column_name: str, ngram_from:int =2, ngram_to:
     words_freq = sorted(words_freq, key=lambda x: x[1], reverse=True)
 
     return words_freq[:top_n]
+
 
 if __name__ == '__main__':
     spacy_pp = SpacyPreprocessor(model='en_core_web_lg')

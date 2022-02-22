@@ -61,9 +61,10 @@ def lang_detector(df:pd.DataFrame, column: str) -> pd.DataFrame:
     return df
 
 @timing
-def lang_detect_spacy(df:pd.DataFrame, column: str) -> pd.DataFrame:
-    print(":: Detecting language using Spacy -> this might take 1-2 minutes....")
-    df[['lang', 'prob']] = df[column].apply(spp.detect_language)
+def lang_detector_spacy(df:pd.DataFrame, column: str) -> pd.DataFrame:
+    print(":: Detecting language using Spacy -> this might take 1-5 minutes....")
+
+    df['lang'], df['lang_prob'] = zip(*df[column].swifter.apply(lambda x: spp.detect_language_single(x)).tolist())
     return df
 
 @timing
@@ -98,10 +99,10 @@ basic_pipeline = Pipeline(
         demoji_preprocessor,
         tweet_preprocessor,
         nltk_preprocessor,
+        predefined_denoiser,
         drop_empty,
         reset_index,
         tokenizer_transformer,
-        predefined_denoiser,
         ngrammer_2_3,
     ]
 )
@@ -112,10 +113,10 @@ spacy_pipeline = Pipeline(
         demoji_preprocessor,
         tweet_preprocessor,
         spacy_preprocessor,
+        predefined_denoiser,
         drop_empty,
         reset_index,
         tokenizer_transformer,
-        predefined_denoiser,
         ngrammer_2_3,
     ]
 )
@@ -123,20 +124,20 @@ spacy_pipeline = Pipeline(
 analytics_pipeline = Pipeline(
     transformers=[
         reset_index,
+        lang_detector_spacy,
         demoji_preprocessor,
         tweet_preprocessor,
-        nltk_preprocessor,
-        # drop_empty,
-        reset_index,
-        lang_detector,
-        tokenizer_transformer,
+        spacy_preprocessor,
         predefined_denoiser,
+        drop_empty,
+        reset_index,
+        tokenizer_transformer,
         ngrammer_2_3,
     ]
 )
 if __name__ == '__main__':
     df = load_data()
     # df = analytics_pipeline.apply(df, column='cleanBody')
-    df = lang_detector(df, column='cleanBody')
+    res = lang_detector_spacy(df, column='cleanBody')
 
     # spp.detect_language(['this is an english'], batch_size=1, n_process=1)
