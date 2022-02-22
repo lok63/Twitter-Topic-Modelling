@@ -1,8 +1,7 @@
 from topic_modelling.preprocessor_all import load_data
-from topic_modelling.pipelines import tweet_preprocessor, spacy_preprocessor
-from topic_modelling.preprocessor_spacy import SpacyPreprocessor
+from topic_modelling.pipelines import basic_pipeline
 from gensim.models.ldamulticore import LdaMulticore
-from gensim.models import TfidfModel, HdpModel, CoherenceModel
+from gensim.models import EnsembleLda, HdpModel, CoherenceModel, Nmf
 import matplotlib.pyplot as plt
 from gensim.utils import tokenize
 from utils import timing
@@ -77,7 +76,7 @@ class TopicModel(ABC):
         pyLDAvis.display(vis)
 
     def visualise_topics(self):
-        vis_data = gensimvis.prepare(basic_model.model, basic_model.corpus, basic_model.id2word)
+        vis_data = gensimvis.prepare(self.model, self.corpus, self.id2word)
         return vis_data
 
     def compute_coherence_values(self, start=2, limit=10, step=2, plot=False):
@@ -103,15 +102,15 @@ class TopicModel(ABC):
         return model_list, coherence_values
 
 
-    def compute_coherence_for_topics_a_d(self, k, a, d=0.5):
+    def compute_coherence_for_topics_a_d(self, k, a, d, c, p):
         lda_model = gensim.models.LdaMulticore(corpus=self.corpus,
                                                id2word=self.id2word,
                                                num_topics=k,
-                                               random_state=100,
-                                               chunksize=100,
-                                               passes=10,
+                                               random_state=RANDOM_STATE,
+                                               chunksize=c,
+                                               passes=p,
                                                alpha=a,
-                                               eta=None,
+                                               eta="auto",
                                                decay=d)
 
         coherence_model_lda = CoherenceModel(model=lda_model, texts=self.df, dictionary=self.id2word, coherence='c_v')
@@ -129,7 +128,7 @@ class BasicModel(TopicModel):
 
 
     @timing
-    def train(self, num_topics: int = 10, passes: int = 5, chunksize=2000, eval_every=10, alpha='asymmetric', eta=None, decay=0.5):
+    def train(self, num_topics: int = 10, passes: int = 1, chunksize=100, eval_every=10, alpha='asymmetric', eta="auto", decay=0.5):
         self.createid2word_dictionary()
         self.filter_extremes()
         self.create_bow_coprpus()
@@ -148,6 +147,67 @@ class BasicModel(TopicModel):
                                   decay=0.5)
         self.model = base_model
 
+class NMFModel(TopicModel):
+
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+
+    def fit(self, df: pd.DataFrame, column: str):
+        self.df = df[column]
+
+    @timing
+    def train(self,   num_topics=10, passes: int = 10, chunksize=100, eval_every=10):
+        self.createid2word_dictionary()
+        self.filter_extremes()
+        self.create_bow_coprpus()
+
+        print(f"----> Training {self.__class__.__name__} <----")
+        base_model = Nmf(corpus=self.corpus,
+                                 id2word=self.id2word,
+                                 num_topics=num_topics,
+                                 passes=passes,
+                                 chunksize=chunksize,
+                                 eval_every=eval_every,
+                                 random_state=RANDOM_STATE
+                         )
+
+        self.model = base_model
+
+
+
+class MalletModel(TopicModel):
+
+    pass
+
+class EnsembleModel(TopicModel):
+
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+
+    def fit(self, df: pd.DataFrame, column: str):
+        self.df = df[column]
+
+    @timing
+    def train(self,   num_topics=10, num_models=4, passes: int = 10, chunksize=100, eval_every=10, alpha='asymmetric', eta=None, decay=0.5):
+        self.createid2word_dictionary()
+        self.filter_extremes()
+        self.create_bow_coprpus()
+
+        print(f"----> Training {self.__class__.__name__} <----")
+        base_model = EnsembleLda(corpus=self.corpus,
+                                 id2word=self.id2word,
+                                 workers=None,
+                                 num_topics=num_topics,
+                                 num_models=num_models,
+                                 passes=passes,
+                                 chunksize=chunksize,
+                                 eval_every=eval_every,
+                                 random_state=RANDOM_STATE,
+                                 alpha=alpha,
+                                 eta=eta,
+                                 decay=0.5)
+
+        self.model = base_model
 
 class HierarchicalModel(TopicModel):
     def __init__(self, *args, **kwargs):
@@ -168,91 +228,28 @@ class HierarchicalModel(TopicModel):
                               )
         self.model = base_model
 
-# class TFIDFModel(TopicModel):
-#
-#     def __init__(self, *args, **kwargs):
-#         super().__init__(*args, **kwargs)
-#
-#     def init_model(self, df: pd.DataFrame, column_name: str):
-#         self.createid2word_dictionary(df, column_name)
-#         self.filter_extremes()
-#         self.create_bow_coprpus(df, column_name)
-#
-#         tfidf = TfidfModel(self.corpus, id2word=self.id2word)
-#         self.model = tfidf
+
 
 
 
 if __name__ == '__main__':
-    spacy_pp = SpacyPreprocessor(model='en_core_web_lg')
 
     df = load_data()
     df = df.reset_index(drop=True)
 
-    df_clean = tweet_preprocessor(df)
-    df_clean = spacy_preprocessor(df_clean, spacy_pp)
+    df = basic_pipeline.apply(df, column='cleanBody')
 
-    df_clean = df_clean.loc[df.cleanBody != '']
-    df_clean = df_clean.reset_index(drop=True)
-    df_clean['tokenized'] = df_clean.cleanBody.apply(lambda x: list(tokenize(x)))
+    nmf_model = NMFModel()
+    nmf_model.fit(df, 'cleanBody')
+    nmf_model.train(num_topics=10)
 
-    # Bsic Model
-    basic_model = BasicModel()
-    basic_model.init_model(df_clean, 'tokenized')
-    basic_model.print_topics()
-
-    basic_model.get_perplexity()
-    basic_model.get_coherance(df_clean, 'tokenized')
-
-    basic_model.visualise_topics()
+    print(nmf_model.get_coherance())
+    print(nmf_model.get_topics())
 
 
-    def compute_coherence_values(dictionary, corpus, texts, limit, start=2, step=3):
-        """
-        Compute c_v coherence for various number of topics
-
-        Parameters:
-        ----------
-        dictionary : Gensim dictionary
-        corpus : Gensim corpus
-        texts : List of input texts
-        limit : Max num of topics
-
-        Returns:
-        -------
-        model_list : List of LDA topic models
-        coherence_values : Coherence values corresponding to the LDA model with respective number of topics
-        """
-        coherence_values = []
-        model_list = []
-        for num_topics in range(start, limit, step):
-            model = LdaMulticore(corpus=corpus,
-                                  num_topics=num_topics,
-                                  id2word=dictionary,
-                                  workers=None,
-                                  passes=5,
-                                  random_state=42)
-
-            model_list.append(model)
-            coherencemodel = CoherenceModel(model=model, texts=texts, dictionary=dictionary, coherence='c_v')
-            coherence_values.append(coherencemodel.get_coherence())
-
-        return model_list, coherence_values
-
-
-    model_list, coherence_values = compute_coherence_values(dictionary=basic_model.id2word, corpus=basic_model.corpus, texts=df_clean.tokenized.tolist(), start=2,
-                                                            limit=50, step=2)
-
-    # Show graph
-    limit = 50
-    start = 2
-    step = 2
-    x = range(start, limit, step)
-    plt.plot(x, coherence_values)
-    plt.xlabel("Num Topics")
-    plt.ylabel("Coherence score")
-    plt.legend(("coherence_values"), loc='best')
-    plt.show()
-    # TFIDF
-
-
+    # ensemble_model = EnsembleModel()
+    # ensemble_model.fit(df, 'cleanBody')
+    # ensemble_model.train(num_topics=10, num_models=10)
+    #
+    # print(ensemble_model.get_coherance())
+    # print(ensemble_model.get_topics())
