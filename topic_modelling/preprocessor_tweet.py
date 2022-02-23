@@ -57,8 +57,10 @@ def demoji_from_text(text:str) -> str:
 
 if __name__ == '__main__':
     assert(tp.clean('Preprocessor is #awesome 👍 https://github.com/s/preprocessor')) == 'Preprocessor is'
-    assert(remove_emoji('Preprocessor is #awesome 👍 https://github.com/s/preprocessor')) == 'Preprocessor is #awesome  https://github.com/s/preprocessor'
+    # assert(remove_emoji('Preprocessor is #awesome 👍 https://github.com/s/preprocessor')) == 'Preprocessor is #awesome  https://github.com/s/preprocessor'
 
     line = "🎅I bet you didn't know that 🙋, 🙋‍♂️, and 🙋‍♀️ are three different emojis."
-
     print(demoji_from_text(line))
+
+    txt = "I love this City. I think it's beautiful"
+    print(demoji_from_text(txt))

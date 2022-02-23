@@ -1,7 +1,7 @@
 from topic_modelling.preprocessor_all import load_data
 from topic_modelling.pipelines import basic_pipeline
 from gensim.models.ldamulticore import LdaMulticore
-from gensim.models import EnsembleLda, HdpModel, CoherenceModel, Nmf
+from gensim.models import EnsembleLda, HdpModel, CoherenceModel, Nmf, TfidfModel
 import matplotlib.pyplot as plt
 from gensim.utils import tokenize
 from utils import timing
@@ -49,6 +49,10 @@ class TopicModel(ABC):
     def create_bow_coprpus(self):
         self.corpus = [self.id2word.doc2bow(d) for d in self.df.tolist()]
 
+    @timing
+    def create_tfidf_corpus(self):
+        tfidf = TfidfModel(self.corpus)
+        self.corpus_tfidf = tfidf[self.corpus]
 
     def get_topics(self):
         words = [re.findall(r'"([^"]*)"', t[1]) for t in self.model.print_topics()]
@@ -102,8 +106,13 @@ class TopicModel(ABC):
         return model_list, coherence_values
 
 
-    def compute_coherence_for_topics_a_d(self, k, a, d, c, p):
-        lda_model = gensim.models.LdaMulticore(corpus=self.corpus,
+    def compute_coherence_for_topics_a_d(self, k, a, d, c, p, tfidf=True):
+        if tfidf:
+            corpus = self.corpus_tfidf
+        else:
+            corpus = self.corpus
+
+        lda_model = gensim.models.LdaMulticore(corpus=corpus,
                                                id2word=self.id2word,
                                                num_topics=k,
                                                random_state=RANDOM_STATE,
@@ -128,13 +137,19 @@ class BasicModel(TopicModel):
 
 
     @timing
-    def train(self, num_topics: int = 10, passes: int = 1, chunksize=100, eval_every=10, alpha='asymmetric', eta="auto", decay=0.5):
+    def train(self, num_topics: int = 10, passes: int = 1, chunksize=100, eval_every=10, alpha='asymmetric', eta="auto", decay=0.5, tfidf=True):
         self.createid2word_dictionary()
         self.filter_extremes()
         self.create_bow_coprpus()
+        self.create_tfidf_corpus()
+        if tfidf:
+            corpus = self.corpus_tfidf
+        else:
+            corpus = self.corpus
+
 
         print(f"----> Training {self.__class__.__name__} <----")
-        base_model = LdaMulticore(corpus=self.corpus,
+        base_model = LdaMulticore(corpus=corpus,
                                   id2word=self.id2word,
                                   workers=None,
                                   num_topics=num_topics,
