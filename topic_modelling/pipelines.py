@@ -11,6 +11,11 @@ from gensim.models.phrases import Phrases
 from utils import timing
 from typing import List,Callable
 import pandas as pd
+from pathlib import Path
+
+
+PROJECT_ROOT = Path(__file__).parent.parent
+N_GRAM_PATH = PROJECT_ROOT / 'frozen_models' / 'ngram_phrase_model.pkl'
 
 spp = SpacyPreprocessor(model='en_core_web_lg')
 
@@ -84,6 +89,17 @@ def predefined_denoiser(df:pd.DataFrame, column: str) -> pd.DataFrame:
 @timing
 def ngrammer_2_3(df:pd.DataFrame, column: str) -> pd.DataFrame:
     bigram_model = Phrases(df[column], min_count=5, threshold=10)
+    frozen_model = bigram_model.freeze()
+    with open(N_GRAM_PATH, 'wb') as pickle_file:
+        frozen_model.save(pickle_file)
+    df[column] = df[column].swifter.apply(lambda x: bigram_model[x])
+    return df
+
+@timing
+def ngrammer_2_3_pre_trained(df:pd.DataFrame, column: str) -> pd.DataFrame:
+    # with open(str(N_GRAM_PATH),'rb') as f:
+    #     bigram_model = Phrases.load(f)
+    bigram_model = Phrases.load(str(N_GRAM_PATH))
     df[column] = df[column].swifter.apply(lambda x: bigram_model[x])
     return df
 
@@ -103,7 +119,7 @@ basic_pipeline = Pipeline(
         drop_empty,
         reset_index,
         tokenizer_transformer,
-        ngrammer_2_3,
+        ngrammer_2_3_pre_trained,
     ]
 )
 
@@ -117,7 +133,8 @@ spacy_pipeline = Pipeline(
         drop_empty,
         reset_index,
         tokenizer_transformer,
-        ngrammer_2_3,
+        # ngrammer_2_3
+        ngrammer_2_3_pre_trained,
     ]
 )
 
@@ -136,8 +153,16 @@ analytics_pipeline = Pipeline(
     ]
 )
 if __name__ == '__main__':
+    test_pipeline = Pipeline(
+        transformers=[
+            tokenizer_transformer,
+            ngrammer_2_3_pre_trained,
+        ]
+    )
+    print(N_GRAM_PATH)
     df = load_data()
-    # df = analytics_pipeline.apply(df, column='cleanBody')
-    res = lang_detector_spacy(df, column='cleanBody')
+    df = test_pipeline.apply(df, column='cleanBody')
+    # res = lang_detector_spacy(df, column='cleanBody')
 
     # spp.detect_language(['this is an english'], batch_size=1, n_process=1)
+    print(PROJECT_ROOT)

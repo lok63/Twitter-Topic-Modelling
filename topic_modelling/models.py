@@ -1,7 +1,7 @@
 from topic_modelling.preprocessor_all import load_data
 from topic_modelling.pipelines import basic_pipeline
 from gensim.models.ldamulticore import LdaMulticore
-from gensim.models import EnsembleLda, HdpModel, CoherenceModel, Nmf, TfidfModel
+from gensim.models import EnsembleLda, HdpModel, CoherenceModel, Nmf, TfidfModel, LdaModel
 import matplotlib.pyplot as plt
 from gensim.utils import tokenize
 from utils import timing
@@ -11,6 +11,11 @@ import pyLDAvis
 import gensim
 import pandas as pd
 import re
+from gensim.test.utils import datapath
+from pathlib import Path
+
+PROJECT_ROOT = Path(__file__).parent.parent
+FROZEN_MODELS_PATH = PROJECT_ROOT / 'frozen_models'
 
 RANDOM_STATE = 42
 
@@ -124,6 +129,10 @@ class TopicModel(ABC):
 
         coherence_model_lda = CoherenceModel(model=lda_model, texts=self.df, dictionary=self.id2word, coherence='c_v')
         return coherence_model_lda.get_coherence()
+
+    def freeze_model(self, filename):
+        filepath = str(FROZEN_MODELS_PATH / filename)
+        self.model.save(filepath)
 
 
 class BasicModel(TopicModel):
@@ -249,18 +258,29 @@ class HierarchicalModel(TopicModel):
 
 if __name__ == '__main__':
 
-    df = load_data()
-    df = df.reset_index(drop=True)
+    # df = load_data()
+    # df = df.reset_index(drop=True)
+    #
+    # df = basic_pipeline.apply(df, column='cleanBody')
+    #
+    # nmf_model = NMFModel()
+    # nmf_model.fit(df, 'cleanBody')
+    # nmf_model.train(num_topics=10)
+    #
+    # print(nmf_model.get_coherance())
+    # print(nmf_model.get_topics())
 
-    df = basic_pipeline.apply(df, column='cleanBody')
+    new_model = LdaModel.load(datapath(str(FROZEN_MODELS_PATH/'lda_tfidf')))
+    # print(new_model.show_topics(num_topics=10, num_words=10))
 
-    nmf_model = NMFModel()
-    nmf_model.fit(df, 'cleanBody')
-    nmf_model.train(num_topics=10)
+    test_input = [["lovely","amazing","city","love", "paris"]]
+    test_corpus = [new_model.id2word.doc2bow(text) for text in test_input]
+    # tfidf_vector = new_model.corpus[test_corpus]
 
-    print(nmf_model.get_coherance())
-    print(nmf_model.get_topics())
+    print(test_corpus)
+    topics = sorted(new_model[test_corpus][0], key=lambda x: x[1], reverse=True)
 
+    print(topics)
 
     # ensemble_model = EnsembleModel()
     # ensemble_model.fit(df, 'cleanBody')
