@@ -1,5 +1,5 @@
-from api.app import get_app
-from api.config import get_api_settings
+from api_service.api.app import get_app
+from api_service.api.config import get_api_settings
 import uvicorn
 
 

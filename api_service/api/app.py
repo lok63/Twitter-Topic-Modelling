@@ -1,6 +1,6 @@
 from fastapi import FastAPI
-from api.config import get_api_settings
-from api.routes import  api, inference
+from api_service.api.config import get_api_settings
+from api_service.api.routes import  api, inference
 
 def get_app() -> FastAPI:
     settings = get_api_settings()
