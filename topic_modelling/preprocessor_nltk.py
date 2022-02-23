@@ -1,15 +1,19 @@
 import nltk
-from nltk import word_tokenize, FreqDist
-from nltk.corpus import stopwords
-from nltk.stem import WordNetLemmatizer
 import contractions
 import re
 try:
     from nltk.tokenize import TweetTokenizer
+    from nltk.corpus import stopwords
+    from nltk.stem import WordNetLemmatizer
+    from nltk import word_tokenize, FreqDist
 except ImportError:
     nltk.download('omw-1.4')
     nltk.download('wordnet')
     nltk.download('stopwords')
+    from nltk.tokenize import TweetTokenizer
+    from nltk.corpus import stopwords
+    from nltk.stem import WordNetLemmatizer
+    from nltk import word_tokenize, FreqDist
 
 
 class NLTKPreprocessor:
