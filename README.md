@@ -84,7 +84,7 @@ python api_service/main.py
 You can play around with the API by sending a POST request to the following endpoint: http://0.0.0.0:5001/get-topics
 or
 by launching the Swagger API on this link http://0.0.0.0:5001/docs
-![Swagger Image](https://github.com/lok63/Twitter-Topic-Modelling/swagger.png?raw=true)
+![Swagger Image](https://github.com/lok63/Twitter-Topic-Modelling/blob/master/swagger.png)
 
 
 ### Run the API Tests
