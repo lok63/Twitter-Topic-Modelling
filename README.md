@@ -60,6 +60,14 @@ Install the requirements
 ```bash
 pip install -r requirements.txt
 ```
+
+Install NLTK dependencies
+```python
+import nltk
+nltk.download('omw-1.4')
+nltk.download('wordnet')
+nltk.download('stopwords')
+```
 ### 2.1 Notebooks
 Run the notebooks to explore the dataset and train the models.
 ```bash
@@ -98,29 +106,29 @@ pytest api_service/tests
 
 ### 3.1 EDA
 * Identify popular users based on their followers and likes count. From there, analyze their tweets
-* Language detection doesn't perform that well. We still have some False Positives. Try to fine tune the lang classifier on tweets
+* Language detection doesn't perform that well. We still have some False Positives. Try to fine-tune the lang classifier on tweets
 
 ### 3.2 Pre-processors
 * Try to initialise the n-grams using the words used from Google Vectors. Since this corpus was created in 2016, enrich it with more data
 
 
-* Spacy's rules is to only retrieve alphabetical tokens. So there are some languages with different characters such as Greek or Japanase that will get excluded. 
-* Another issue is that we are loading the english stopwords. So a lot of stopwords from other languages are passing through the pre-processor.
-  * If we manage to improve the lang detection, we can dynamically load the specific language model from spacy and pre-process based on the language and it's own stopwords
+* Spacy's rule is to only retrieve alphabetical tokens. So there are some languages with different characters such as Greek or Japanese that will get excluded. 
+* Another issue is that we are loading the English stopwords. So a lot of stopwords from other languages are passing through the pre-processor.
+  * If we manage to improve the lang detection, we can dynamically load the specific language model from spacy and pre-process based on the language and its own stopwords
 * Use a NER and store all entities and the labels in a different column
 
 ### 3.3 Models
 * Identify how to use HierarchicalModel to get the best number of topics
-* Expirement with the Word2Vec model
+* Experiment with the Word2Vec model
 * Create another Visualisation using the Ensemble model
-* Export the whole object of the model and it's built in functions instead of the binary file
-* Create an inferance function
+* Export the whole object of the model and its built-in functions instead of the binary file
+* Create an inference function
 
 ### 3.4 API
 * At the moment the whole project is monolithic. We can deploy this API as a service but it won't be able to identify the pre-trained models
   * Export and load the models from an S3 bucket
-* Creat a new endpoind to re-train/update the current model
+* Create a new endpoint to re-train/update the current model
   * Create model versions/snapshots
-  * Run tests to check the coherance of the new model and based on a threshold decide which model to keep ( after we update the model
+  * Run tests to check the coherence of the new model and based on a threshold decide which model to keep ( after we update the model
   )
 
